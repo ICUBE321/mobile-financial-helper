@@ -392,49 +392,230 @@ export const budgetAPI = {
 
 // Utility functions for data management
 export const storageUtils = {
-  // Clear all app data (useful for logout or reset)
+  // Direct storage access
+  getStorageData,
+  setStorageData,
+
+  // Clear all data
   clearAllData: async () => {
     try {
-      await AsyncStorage.multiRemove([
-        KEYS.USERS,
-        KEYS.ASSETS,
-        KEYS.GROWTH,
-        KEYS.USER_COUNTER,
-        KEYS.ASSET_COUNTER,
-        KEYS.GROWTH_COUNTER,
-        "token",
-        "userId",
-      ]);
+      await AsyncStorage.clear();
     } catch (error) {
-      console.error("Error clearing data:", error);
+      console.error("Error clearing all data:", error);
+      throw error;
     }
   },
 
-  // Export data (for backup)
-  exportData: async () => {
+  // Export data (for backup) - Enhanced version
+  exportData: async (userId?: string) => {
     try {
-      const data = {
+      // Get all basic data
+      const basicData = {
         users: await getStorageData(KEYS.USERS),
         assets: await getStorageData(KEYS.ASSETS),
         growth: await getStorageData(KEYS.GROWTH),
+        goals: await getStorageData(KEYS.GOALS),
+        version: "1.1",
+        exportDate: new Date().toISOString(),
+        appName: "WealthAndAssetManagerMobile",
       };
-      return JSON.stringify(data);
+
+      // Add budget data for all users or specific user
+      const budgetData: any = {};
+      if (userId) {
+        // Export budget for specific user
+        const budget = await AsyncStorage.getItem(`budget_${userId}`);
+        if (budget) {
+          budgetData[userId] = JSON.parse(budget);
+        }
+      } else {
+        // Export all budget data (for admin/full backup)
+        const users = basicData.users || [];
+        for (const user of users) {
+          const budget = await AsyncStorage.getItem(`budget_${user._id}`);
+          if (budget) {
+            budgetData[user._id] = JSON.parse(budget);
+          }
+        }
+      }
+
+      const fullData = {
+        ...basicData,
+        budgets: budgetData,
+      };
+
+      return JSON.stringify(fullData, null, 2); // Pretty formatted JSON
     } catch (error) {
       console.error("Error exporting data:", error);
       return null;
     }
   },
 
-  // Import data (for restore)
-  importData: async (dataString: string) => {
+  // Export data in user-friendly format
+  exportUserFriendlyData: async (userId: string) => {
+    try {
+      const assets = await assetAPI.getAllAssets(userId);
+      const goals = await goalAPI.getGoals(userId);
+      const growth = await growthAPI.getPortfolioGrowth(userId);
+      const budget = await budgetAPI.getBudgetAllocation(userId);
+
+      // Create human-readable export
+      const exportData = {
+        exportInfo: {
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString(),
+          version: "1.1",
+        },
+        portfolio: {
+          totalValue: assets.reduce(
+            (sum: number, asset: any) => sum + asset.value,
+            0
+          ),
+          totalAssets: assets.length,
+          assets: assets.map((asset: any) => ({
+            name: asset.name,
+            type: asset.type,
+            value: asset.value,
+            currency: asset.currency,
+          })),
+        },
+        budget: budget
+          ? {
+              monthlyIncome: budget.monthlyIncome,
+              currency: budget.currency,
+              allocation: {
+                needs: {
+                  percentage: budget.needs.percentage,
+                  amount: budget.needs.amount,
+                  items: budget.needs.items.map((item: any) => ({
+                    name: item.name,
+                    amount: item.amount,
+                    description: item.description,
+                  })),
+                },
+                wants: {
+                  percentage: budget.wants.percentage,
+                  amount: budget.wants.amount,
+                  items: budget.wants.items.map((item: any) => ({
+                    name: item.name,
+                    amount: item.amount,
+                    description: item.description,
+                  })),
+                },
+                savings: {
+                  percentage: budget.savings.percentage,
+                  amount: budget.savings.amount,
+                  items: budget.savings.items.map((item: any) => ({
+                    name: item.name,
+                    amount: item.amount,
+                    description: item.description,
+                  })),
+                },
+              },
+            }
+          : null,
+        goals: goals
+          ? {
+              shortTermGoals: goals.shortTermGoals || [],
+              longTermGoals: goals.longTermGoals || [],
+            }
+          : null,
+        growth: growth.map((g: any) => ({
+          month: g.month,
+          portfolioValue: g.portfolioValue,
+          isInitialValue: g.isInitialValue,
+        })),
+      };
+
+      return JSON.stringify(exportData, null, 2);
+    } catch (error) {
+      console.error("Error exporting user-friendly data:", error);
+      return null;
+    }
+  },
+
+  // Import data (for restore) - Enhanced version
+  importData: async (dataString: string, userId?: string) => {
     try {
       const data = JSON.parse(dataString);
-      await setStorageData(KEYS.USERS, data.users || []);
-      await setStorageData(KEYS.ASSETS, data.assets || []);
-      await setStorageData(KEYS.GROWTH, data.growth || []);
+
+      // Validate data format
+      if (!data.version || !data.exportDate) {
+        throw new Error("Invalid data format - missing version or export date");
+      }
+
+      // Import basic data
+      if (data.users) await setStorageData(KEYS.USERS, data.users);
+      if (data.assets) await setStorageData(KEYS.ASSETS, data.assets);
+      if (data.growth) await setStorageData(KEYS.GROWTH, data.growth);
+      if (data.goals) await setStorageData(KEYS.GOALS, data.goals);
+
+      // Import budget data
+      if (data.budgets) {
+        if (userId && data.budgets[userId]) {
+          // Import budget for specific user
+          await AsyncStorage.setItem(
+            `budget_${userId}`,
+            JSON.stringify(data.budgets[userId])
+          );
+        } else {
+          // Import all budget data
+          for (const [userBudgetId, budgetData] of Object.entries(
+            data.budgets
+          )) {
+            await AsyncStorage.setItem(
+              `budget_${userBudgetId}`,
+              JSON.stringify(budgetData)
+            );
+          }
+        }
+      }
+
+      return {
+        success: true,
+        message: "Data imported successfully",
+        importedData: {
+          users: data.users?.length || 0,
+          assets: data.assets?.length || 0,
+          growth: data.growth?.length || 0,
+          goals: data.goals?.length || 0,
+          budgets: Object.keys(data.budgets || {}).length,
+        },
+      };
     } catch (error) {
       console.error("Error importing data:", error);
-      throw new Error("Invalid data format");
+      throw new Error(
+        `Import failed: ${
+          error instanceof Error ? error.message : "Invalid data format"
+        }`
+      );
+    }
+  },
+
+  // Backup current data before import
+  createBackup: async (userId: string) => {
+    try {
+      const backupData = await storageUtils.exportData(userId);
+      const backupKey = `backup_${userId}_${Date.now()}`;
+      await AsyncStorage.setItem(backupKey, backupData || "");
+      return backupKey;
+    } catch (error) {
+      console.error("Error creating backup:", error);
+      return null;
+    }
+  },
+
+  // Restore from backup
+  restoreBackup: async (backupKey: string) => {
+    try {
+      const backupData = await AsyncStorage.getItem(backupKey);
+      if (!backupData) {
+        throw new Error("Backup not found");
+      }
+      return await storageUtils.importData(backupData);
+    } catch (error) {
+      console.error("Error restoring backup:", error);
+      throw error;
     }
   },
 };
