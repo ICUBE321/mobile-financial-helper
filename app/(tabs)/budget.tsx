@@ -40,6 +40,7 @@ export default function BudgetScreen() {
   });
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [showCategoryDetailModal, setShowCategoryDetailModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<
     "needs" | "wants" | "savings"
   >("needs");
@@ -241,6 +242,11 @@ export default function BudgetScreen() {
     return items.reduce((total, item) => total + item.amount, 0);
   };
 
+  const openCategoryDetailModal = (category: "needs" | "wants" | "savings") => {
+    setSelectedCategory(category);
+    setShowCategoryDetailModal(true);
+  };
+
   const renderBudgetOverview = () => {
     if (!budget) {
       return (
@@ -286,19 +292,24 @@ export default function BudgetScreen() {
     const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
 
     return (
-      <View
+      <TouchableOpacity
         key={category}
         style={[
           styles.allocationCard,
           category === "savings" ? styles.savingsCard : {},
           { borderLeftColor: color },
         ]}
+        onPress={() => openCategoryDetailModal(category)}
+        activeOpacity={0.7}
       >
         <View style={styles.categoryHeader}>
           <FontAwesome name={iconName as any} size={24} color={color} />
           <TouchableOpacity
             style={[styles.addItemButton, { backgroundColor: color }]}
-            onPress={() => openAddItemModal(category)}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent triggering the card click
+              openAddItemModal(category);
+            }}
           >
             <FontAwesome name="plus" size={12} color="white" />
           </TouchableOpacity>
@@ -362,7 +373,7 @@ export default function BudgetScreen() {
             )}
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -686,6 +697,177 @@ export default function BudgetScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Category Detail Modal */}
+      <Modal
+        visible={showCategoryDetailModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCategoryDetailModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCategoryDetailModal(false)}
+        >
+          <View
+            style={styles.categoryDetailContainer}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.categoryDetailHeader}>
+              <Text style={styles.categoryDetailTitle}>
+                {selectedCategory.charAt(0).toUpperCase() +
+                  selectedCategory.slice(1)}{" "}
+                Items
+                {budget && (
+                  <Text style={styles.categoryDetailSubtitle}>
+                    {" "}
+                    ({getCurrencySymbol(budget.currency)}
+                    {budget[selectedCategory].amount.toLocaleString("en-US", {
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    allocated)
+                  </Text>
+                )}
+              </Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowCategoryDetailModal(false)}
+              >
+                <FontAwesome name="times" size={20} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.categoryDetailContent}>
+              {budget && budget[selectedCategory].items.length > 0 ? (
+                <>
+                  <View style={styles.categoryStats}>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statLabel}>Total Items</Text>
+                      <Text style={styles.statValue}>
+                        {budget[selectedCategory].items.length}
+                      </Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statLabel}>Total Spent</Text>
+                      <Text style={styles.statValue}>
+                        {getCurrencySymbol(budget.currency)}
+                        {calculateCategoryTotal(
+                          budget[selectedCategory].items
+                        ).toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statLabel}>Remaining</Text>
+                      <Text
+                        style={[
+                          styles.statValue,
+                          budget[selectedCategory].amount -
+                            calculateCategoryTotal(
+                              budget[selectedCategory].items
+                            ) <
+                          0
+                            ? styles.overBudget
+                            : styles.underBudget,
+                        ]}
+                      >
+                        {getCurrencySymbol(budget.currency)}
+                        {Math.abs(
+                          budget[selectedCategory].amount -
+                            calculateCategoryTotal(
+                              budget[selectedCategory].items
+                            )
+                        ).toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <FlatList
+                    data={budget[selectedCategory].items}
+                    keyExtractor={(item) => item._id}
+                    style={styles.itemsDetailList}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.itemDetailCard}
+                        onPress={() => {
+                          setShowCategoryDetailModal(false);
+                          openEditItemModal(item);
+                        }}
+                      >
+                        <View style={styles.itemDetailMain}>
+                          <Text style={styles.itemDetailName}>{item.name}</Text>
+                          <Text style={styles.itemDetailAmount}>
+                            {getCurrencySymbol(budget.currency)}
+                            {item.amount.toLocaleString("en-US", {
+                              maximumFractionDigits: 2,
+                            })}
+                          </Text>
+                        </View>
+                        {item.description && (
+                          <Text style={styles.itemDetailDescription}>
+                            {item.description}
+                          </Text>
+                        )}
+                        <FontAwesome
+                          name="chevron-right"
+                          size={16}
+                          color={Colors.textLight}
+                          style={styles.itemDetailChevron}
+                        />
+                      </TouchableOpacity>
+                    )}
+                    showsVerticalScrollIndicator={false}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.addMoreItemsButton}
+                    onPress={() => {
+                      setShowCategoryDetailModal(false);
+                      openAddItemModal(selectedCategory);
+                    }}
+                  >
+                    <FontAwesome
+                      name="plus"
+                      size={16}
+                      color={Colors.background}
+                    />
+                    <Text style={styles.addMoreItemsText}>Add More Items</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <View style={styles.emptyCategory}>
+                  <FontAwesome
+                    name={
+                      selectedCategory === "needs"
+                        ? "home"
+                        : selectedCategory === "wants"
+                        ? "shopping-bag"
+                        : "bank"
+                    }
+                    size={48}
+                    color={Colors.textLight}
+                  />
+                  <Text style={styles.emptyCategoryTitle}>
+                    No {selectedCategory} items yet
+                  </Text>
+                  <Text style={styles.emptyCategoryText}>
+                    Start adding items to track your {selectedCategory} expenses
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.addFirstItemButton}
+                    onPress={() => {
+                      setShowCategoryDetailModal(false);
+                      openAddItemModal(selectedCategory);
+                    }}
+                  >
+                    <Text style={styles.addFirstItemText}>Add First Item</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -1003,6 +1185,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: Spacing.md,
   },
   dropdownContainer: {
     backgroundColor: Colors.background,
@@ -1101,6 +1284,168 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.error,
   },
   deleteButtonText: {
+    color: Colors.background,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Category Detail Modal Styles
+  categoryDetailContainer: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
+    width: "100%",
+    maxHeight: "85%",
+    minHeight: "50%",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  categoryDetailHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  categoryDetailTitle: {
+    ...Typography.heading3,
+    color: Colors.text,
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  categoryDetailSubtitle: {
+    ...Typography.bodySmall,
+    color: Colors.textLight,
+    fontWeight: "normal",
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  categoryDetailContent: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  categoryStats: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: Colors.primary + "10",
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statLabel: {
+    ...Typography.bodySmall,
+    color: Colors.textLight,
+    marginBottom: Spacing.xs,
+  },
+  statValue: {
+    ...Typography.heading3,
+    color: Colors.text,
+    fontWeight: "bold",
+  },
+  itemsDetailList: {
+    flex: 1,
+    marginBottom: Spacing.lg,
+  },
+  itemDetailCard: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  itemDetailMain: {
+    flex: 1,
+  },
+  itemDetailName: {
+    ...Typography.body,
+    color: Colors.text,
+    fontWeight: "600",
+    marginBottom: Spacing.xs,
+  },
+  itemDetailAmount: {
+    ...Typography.body,
+    color: Colors.primary,
+    fontWeight: "bold",
+  },
+  itemDetailDescription: {
+    ...Typography.bodySmall,
+    color: Colors.textLight,
+    marginTop: Spacing.xs,
+    flex: 1,
+  },
+  itemDetailChevron: {
+    marginLeft: Spacing.sm,
+  },
+  addMoreItemsButton: {
+    backgroundColor: Colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  addMoreItemsText: {
+    color: Colors.background,
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: Spacing.sm,
+  },
+  emptyCategory: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: Spacing.xl,
+  },
+  emptyCategoryTitle: {
+    ...Typography.heading3,
+    color: Colors.text,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  emptyCategoryText: {
+    ...Typography.body,
+    color: Colors.textLight,
+    textAlign: "center",
+    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+  },
+  addFirstItemButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+  },
+  addFirstItemText: {
     color: Colors.background,
     fontSize: 16,
     fontWeight: "600",

@@ -206,7 +206,8 @@ export default function ProfileScreen() {
               try {
                 const content = e.target?.result as string;
                 await processImportData(content);
-              } catch (error) {
+              } catch (err) {
+                console.error("Error reading file:", err);
                 Alert.alert("Error", "Failed to read file");
               }
             };
@@ -215,11 +216,20 @@ export default function ProfileScreen() {
         };
         input.click();
       } else {
-        // For mobile, would need document picker (to be implemented)
+        // For mobile, show instructions for now until native modules are properly linked
         Alert.alert(
           "Import on Mobile",
-          "Mobile import feature requires additional setup. For now, please use the web version for importing data.",
-          [{ text: "OK" }]
+          "To import data on mobile:\n\n1. First, restart your development server\n2. Clear Metro cache: npx expo r -c\n3. Rebuild the app to link native modules\n\nAlternatively, you can:\n• Export from another device\n• Use the web version for import\n• Share JSON files via messaging apps",
+          [
+            {
+              text: "Try Later",
+              style: "cancel",
+            },
+            {
+              text: "Show Raw Import",
+              onPress: () => showRawImportOption(),
+            },
+          ]
         );
       }
     } catch (error) {
@@ -258,6 +268,14 @@ export default function ProfileScreen() {
         error instanceof Error ? error.message : "Failed to process import data"
       );
     }
+  };
+
+  const showRawImportOption = () => {
+    Alert.alert(
+      "Raw Import Instructions",
+      "For advanced users:\n\n1. Copy your JSON backup data\n2. Paste it into a text editor\n3. Share it via messaging app to this device\n4. Contact support for manual import assistance\n\nThis feature will be fully available after the next app restart.",
+      [{ text: "OK" }]
+    );
   };
 
   const handleClearData = async () => {

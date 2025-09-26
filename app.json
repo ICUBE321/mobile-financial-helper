@@ -1,39 +1,40 @@
 {
   "expo": {
-    "name": "WealthAndAssetManagerMobile",
-    "slug": "WealthAndAssetManagerMobile",
+    "name": "Wealth Manager",
+    "slug": "wealth-manager",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "wealthandassetmanagermobile",
+    "icon": "./assets/images/logo.jpg",
+    "scheme": "wealthmanager",
     "userInterfaceStyle": "automatic",
+    "description": "Your personal wealth and asset management companion",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.izien.WealthAndAssetManagerMobile"
+      "bundleIdentifier": "com.izien.WealthManager"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/logo.jpg",
+        "backgroundColor": "#2E8B57"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.izien.WealthAndAssetManagerMobile"
+      "package": "com.izien.wealthmanager"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/logo.jpg"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo.jpg",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#2E8B57"
         }
       ]
     ],

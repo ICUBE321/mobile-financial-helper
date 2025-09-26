@@ -55,7 +55,7 @@ export const assetAPI = {
   addAsset: async (asset: any, userId: string) => {
     const assets = await getStorageData(KEYS.ASSETS);
     const newAsset = {
-      _id: await getNextId(KEYS.ASSET_COUNTER),
+      _id: (await getNextId(KEYS.ASSET_COUNTER)).toString(),
       ...asset,
       userId,
     };
@@ -66,10 +66,18 @@ export const assetAPI = {
 
   updateAsset: async (assetId: string, asset: any) => {
     const assets = await getStorageData(KEYS.ASSETS);
-    const assetIndex = assets.findIndex(
-      (a: any) => a._id.toString() === assetId
+
+    console.log("Updating asset ID:", assetId, "Type:", typeof assetId);
+    console.log(
+      "Available assets:",
+      assets.map((a: any) => ({ id: a._id, type: typeof a._id }))
     );
 
+    const assetIndex = assets.findIndex(
+      (a: any) => a._id.toString() === assetId.toString()
+    );
+
+    console.log("Asset index found:", assetIndex);
     if (assetIndex !== -1) {
       assets[assetIndex] = { ...assets[assetIndex], ...asset };
       await setStorageData(KEYS.ASSETS, assets);
@@ -81,7 +89,7 @@ export const assetAPI = {
   deleteAsset: async (assetId: string) => {
     const assets = await getStorageData(KEYS.ASSETS);
     const filteredAssets = assets.filter(
-      (a: any) => a._id.toString() !== assetId
+      (a: any) => a._id.toString() !== assetId.toString()
     );
     await setStorageData(KEYS.ASSETS, filteredAssets);
     return { message: "Asset deleted" };
@@ -165,7 +173,7 @@ export const authAPI = {
     }
 
     const newUser = {
-      _id: await getNextId(KEYS.USER_COUNTER),
+      _id: (await getNextId(KEYS.USER_COUNTER)).toString(),
       ...userData,
     };
 
@@ -199,7 +207,7 @@ export const growthAPI = {
   }) => {
     const growth = await getStorageData(KEYS.GROWTH);
     const newGrowth = {
-      _id: await getNextId(KEYS.GROWTH_COUNTER),
+      _id: (await getNextId(KEYS.GROWTH_COUNTER)).toString(),
       ...data,
     };
     growth.push(newGrowth);

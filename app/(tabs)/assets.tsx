@@ -28,6 +28,7 @@ interface AssetFormData {
   type: string;
   value: string;
   currency: string;
+  isDebt: boolean;
 }
 
 export default function AssetsScreen() {
@@ -40,6 +41,7 @@ export default function AssetsScreen() {
     type: "",
     value: "",
     currency: "USD",
+    isDebt: false,
   });
   const [refreshing, setRefreshing] = useState(false);
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
@@ -106,14 +108,22 @@ export default function AssetsScreen() {
       const newAsset = {
         name: formData.name,
         type: formData.type,
-        value: parseFloat(formData.value),
+        value: formData.isDebt
+          ? -Math.abs(parseFloat(formData.value))
+          : parseFloat(formData.value), // Make negative if debt
         currency: formData.currency,
       };
 
       await assetAPI.addAsset(newAsset, JSON.parse(userId));
       await loadAssets();
       setIsAddMode(false);
-      setFormData({ name: "", type: "", value: "", currency: "USD" });
+      setFormData({
+        name: "",
+        type: "",
+        value: "",
+        currency: "USD",
+        isDebt: false,
+      });
     } catch (error) {
       console.error("Error adding asset:", error);
       Alert.alert("Error", "Failed to add asset");
@@ -136,7 +146,9 @@ export default function AssetsScreen() {
       const updatedAsset = {
         name: formData.name,
         type: formData.type,
-        value: parseFloat(formData.value),
+        value: formData.isDebt
+          ? -Math.abs(parseFloat(formData.value))
+          : parseFloat(formData.value), // Make negative if debt
         currency: formData.currency,
       };
 
@@ -144,7 +156,13 @@ export default function AssetsScreen() {
       await loadAssets();
       setIsEditMode(false);
       setEditingAsset(null);
-      setFormData({ name: "", type: "", value: "", currency: "USD" });
+      setFormData({
+        name: "",
+        type: "",
+        value: "",
+        currency: "USD",
+        isDebt: false,
+      });
     } catch (error) {
       console.error("Error updating asset:", error);
       Alert.alert("Error", "Failed to update asset");
@@ -166,52 +184,162 @@ export default function AssetsScreen() {
     setFormData({
       name: asset.name,
       type: asset.type,
-      value: asset.value.toString(),
+      value: Math.abs(asset.value).toString(), // Show positive value in form
       currency: asset.currency,
+      isDebt: asset.value < 0, // Determine if it's a debt based on negative value
     });
     setIsEditMode(true);
     setIsAddMode(false);
   };
 
-  const renderAssetItem = ({ item }: { item: Asset }) => (
-    <View style={styles.assetCard}>
-      <View>
-        <Text style={styles.assetName}>{item.name}</Text>
-        <Text style={styles.assetType}>{item.type}</Text>
-      </View>
-      <View style={styles.rightContent}>
-        <Text style={styles.assetValue}>
-          {getCurrencySymbol(item.currency)}
-          {item.value.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+  const calculateTotalValue = () => {
+    // Group assets and debts by currency and calculate totals
+    const currencyData = assets.reduce((data, asset) => {
+      if (!data[asset.currency]) {
+        data[asset.currency] = {
+          assets: 0,
+          debts: 0,
+          net: 0,
+        };
+      }
+
+      if (asset.value < 0) {
+        data[asset.currency].debts += Math.abs(asset.value);
+      } else {
+        data[asset.currency].assets += asset.value;
+      }
+
+      data[asset.currency].net =
+        data[asset.currency].assets - data[asset.currency].debts;
+
+      return data;
+    }, {} as { [key: string]: { assets: number; debts: number; net: number } });
+
+    return currencyData;
+  };
+
+  const renderTotalCard = () => {
+    const currencyData = calculateTotalValue();
+    const currencies = Object.keys(currencyData);
+
+    if (currencies.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.totalCard}>
+        <Text style={styles.totalTitle}>Net Worth</Text>
+        {currencies.map((currency) => (
+          <View key={currency} style={styles.totalSection}>
+            <View style={styles.totalRow}>
+              <Text
+                style={[
+                  styles.totalAmount,
+                  currencyData[currency].net < 0 && styles.negativeNet,
+                ]}
+              >
+                {currencyData[currency].net < 0 ? "-" : ""}
+                {getCurrencySymbol(currency)}
+                {Math.abs(currencyData[currency].net).toLocaleString("en-US", {
+                  maximumFractionDigits: 2,
+                })}
+              </Text>
+              <Text style={styles.totalCurrency}>{currency}</Text>
+            </View>
+
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownText}>
+                Assets: {getCurrencySymbol(currency)}
+                {currencyData[currency].assets.toLocaleString("en-US", {
+                  maximumFractionDigits: 2,
+                })}
+              </Text>
+              <View style={styles.breakdownSpacer} />
+              <Text style={styles.breakdownText}>
+                Debts: {getCurrencySymbol(currency)}
+                {currencyData[currency].debts.toLocaleString("en-US", {
+                  maximumFractionDigits: 2,
+                })}
+              </Text>
+            </View>
+          </View>
+        ))}
+        <View style={styles.totalDivider} />
+        <Text style={styles.totalAssetsCount}>
+          {assets.filter((a) => a.value >= 0).length} asset
+          {assets.filter((a) => a.value >= 0).length !== 1 ? "s" : ""} •{" "}
+          {assets.filter((a) => a.value < 0).length} debt
+          {assets.filter((a) => a.value < 0).length !== 1 ? "s" : ""}
         </Text>
-        <TouchableOpacity
-          onPress={() => handleEditAsset(item)}
-          style={styles.editButton}
-        >
-          <FontAwesome name="edit" size={20} color={Colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            Alert.alert(
-              "Delete Asset",
-              "Are you sure you want to delete this asset?",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete",
-                  onPress: () => handleDelete(item._id),
-                  style: "destructive",
-                },
-              ]
-            );
-          }}
-          style={styles.deleteButton}
-        >
-          <FontAwesome name="trash-o" size={20} color={Colors.error} />
-        </TouchableOpacity>
       </View>
-    </View>
-  );
+    );
+  };
+
+  const renderAssetItem = ({ item }: { item: Asset }) => {
+    const isDebt = item.value < 0;
+    return (
+      <View style={[styles.assetCard, isDebt && styles.debtCard]}>
+        <View style={styles.leftContent}>
+          <View style={styles.assetNameRow}>
+            {isDebt && (
+              <FontAwesome
+                name="minus-circle"
+                size={16}
+                color={Colors.error}
+                style={styles.debtIcon}
+              />
+            )}
+            <Text
+              style={styles.assetName}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {item.name}
+            </Text>
+          </View>
+          <Text style={styles.assetType} numberOfLines={1} ellipsizeMode="tail">
+            {item.type} {isDebt ? "(Debt)" : ""}
+          </Text>
+        </View>
+        <View style={styles.rightContent}>
+          <Text style={[styles.assetValue, isDebt && styles.debtValue]}>
+            {isDebt ? "-" : ""}
+            {getCurrencySymbol(item.currency)}
+            {Math.abs(item.value).toLocaleString("en-US", {
+              maximumFractionDigits: 2,
+            })}
+          </Text>
+          <TouchableOpacity
+            onPress={() => handleEditAsset(item)}
+            style={styles.editButton}
+          >
+            <FontAwesome name="edit" size={20} color={Colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert(
+                `Delete ${isDebt ? "Debt" : "Asset"}`,
+                `Are you sure you want to delete this ${
+                  isDebt ? "debt" : "asset"
+                }?`,
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Delete",
+                    onPress: () => handleDelete(item._id),
+                    style: "destructive",
+                  },
+                ]
+              );
+            }}
+            style={styles.deleteButton}
+          >
+            <FontAwesome name="trash-o" size={20} color={Colors.error} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -228,7 +356,13 @@ export default function AssetsScreen() {
               setIsAddMode(false);
               setIsEditMode(false);
               setEditingAsset(null);
-              setFormData({ name: "", type: "", value: "", currency: "USD" });
+              setFormData({
+                name: "",
+                type: "",
+                value: "",
+                currency: "USD",
+                isDebt: false,
+              });
             } else {
               // Open add mode
               setIsAddMode(true);
@@ -272,6 +406,38 @@ export default function AssetsScreen() {
           />
 
           <TouchableOpacity
+            style={styles.debtToggle}
+            onPress={() =>
+              setFormData({ ...formData, isDebt: !formData.isDebt })
+            }
+          >
+            <View style={styles.debtToggleRow}>
+              <View>
+                <Text style={styles.debtToggleTitle}>
+                  {formData.isDebt ? "Debt/Liability" : "Asset"}
+                </Text>
+                <Text style={styles.debtToggleSubtitle}>
+                  {formData.isDebt
+                    ? "Money you owe (credit card, loan, mortgage)"
+                    : "Something you own with value"}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.toggleButton,
+                  formData.isDebt && styles.toggleButtonActive,
+                ]}
+              >
+                <FontAwesome
+                  name={formData.isDebt ? "minus" : "plus"}
+                  size={16}
+                  color={formData.isDebt ? Colors.error : Colors.success}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.currencySelector}
             onPress={() => setShowCurrencyDropdown(true)}
           >
@@ -299,7 +465,13 @@ export default function AssetsScreen() {
               onPress={() => {
                 setIsEditMode(false);
                 setEditingAsset(null);
-                setFormData({ name: "", type: "", value: "", currency: "USD" });
+                setFormData({
+                  name: "",
+                  type: "",
+                  value: "",
+                  currency: "USD",
+                  isDebt: false,
+                });
               }}
             >
               <Text style={styles.submitButtonText}>Cancel</Text>
@@ -307,6 +479,8 @@ export default function AssetsScreen() {
           )}
         </View>
       )}
+
+      {renderTotalCard()}
 
       <FlatList
         data={assets}
@@ -433,6 +607,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  leftContent: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
   assetName: {
     ...Typography.heading3,
     color: Colors.text,
@@ -445,6 +623,7 @@ const styles = StyleSheet.create({
   rightContent: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 0, // Prevent shrinking
   },
   assetValue: {
     ...Typography.body,
@@ -595,5 +774,129 @@ const styles = StyleSheet.create({
   },
   currencyTextContainer: {
     flex: 1,
+  },
+  totalCard: {
+    backgroundColor: Colors.primary,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    margin: Spacing.md,
+    marginBottom: Spacing.sm,
+    alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  totalTitle: {
+    ...Typography.heading3,
+    color: Colors.background,
+    marginBottom: Spacing.md,
+    textAlign: "center",
+  },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  totalAmount: {
+    ...Typography.heading2,
+    color: Colors.background,
+    fontWeight: "bold",
+    marginRight: Spacing.sm,
+  },
+  totalCurrency: {
+    ...Typography.body,
+    color: Colors.background,
+    opacity: 0.9,
+    fontSize: 16,
+  },
+  totalDivider: {
+    width: "100%",
+    height: 1,
+    backgroundColor: Colors.background,
+    opacity: 0.3,
+    marginVertical: Spacing.md,
+  },
+  totalAssetsCount: {
+    ...Typography.bodySmall,
+    color: Colors.background,
+    opacity: 0.8,
+  },
+  debtToggle: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.background,
+  },
+  debtToggleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  debtToggleTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  debtToggleSubtitle: {
+    fontSize: 14,
+    color: Colors.textLight,
+    maxWidth: "85%",
+  },
+  toggleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toggleButtonActive: {
+    backgroundColor: Colors.error + "20",
+  },
+  debtCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.error,
+  },
+  assetNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  debtIcon: {
+    marginRight: Spacing.xs,
+  },
+  debtValue: {
+    color: Colors.error,
+  },
+  totalSection: {
+    marginBottom: Spacing.md,
+  },
+  negativeNet: {
+    color: Colors.error,
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+  },
+  breakdownSpacer: {
+    width: Spacing.md,
+  },
+  breakdownText: {
+    ...Typography.bodySmall,
+    color: Colors.background,
+    opacity: 0.8,
   },
 });
