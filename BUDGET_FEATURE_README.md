@@ -1,7 +1,9 @@
 # Budget Allocation Feature - Usage Guide
 
 ## Overview
+
 The Budget Allocation feature allows users to:
+
 - Set their monthly income
 - Allocate percentages to Needs, Wants, and Savings
 - View calculated amounts for each category
@@ -11,9 +13,11 @@ The Budget Allocation feature allows users to:
 ## How to Use
 
 ### 1. Navigate to Budget Tab
+
 - Open the app and tap on the "Budget" tab (calculator icon) at the bottom
 
 ### 2. Create Your First Budget
+
 - If no budget exists, you'll see an empty state with a pie-chart icon
 - Tap the "Edit" button (pencil icon) in the header
 - Fill in your monthly income
@@ -24,11 +28,13 @@ The Budget Allocation feature allows users to:
   - **Savings**: 20% (emergency fund, retirement, investments, future goals)
 
 ### 3. Budget Rules
+
 - All percentages must add up to exactly 100%
 - The submit button is disabled until this requirement is met
 - Real-time calculation shows current total percentage
 
 ### 4. View Your Budget
+
 - Once created, you'll see:
   - Monthly income at the top
   - Three allocation cards showing:
@@ -37,6 +43,7 @@ The Budget Allocation feature allows users to:
     - Category icons (home, shopping bag, bank)
 
 ### 5. Edit Your Budget
+
 - Tap the edit button to modify your allocation
 - All fields are pre-populated with current values
 - Save changes or cancel to revert
@@ -44,6 +51,7 @@ The Budget Allocation feature allows users to:
 ## Features Implemented
 
 ### ✅ Core Functionality
+
 - Monthly income input
 - Percentage-based allocation (Needs, Wants, Savings)
 - Currency selection (USD, EUR, GBP, JPY, CAD, AUD, CHF, CNY, INR, BTC, ETH)
@@ -51,6 +59,7 @@ The Budget Allocation feature allows users to:
 - Data persistence using local storage
 
 ### ✅ User Experience
+
 - Clean, intuitive interface
 - Form validation
 - Error handling
@@ -59,6 +68,7 @@ The Budget Allocation feature allows users to:
 - Currency symbols display
 
 ### ✅ Navigation
+
 - Added Budget tab to bottom navigation
 - Calculator icon for easy identification
 - Integrated with existing app structure
@@ -73,6 +83,7 @@ The Budget Allocation feature allows users to:
 ## Technical Implementation
 
 ### Data Structure
+
 ```typescript
 interface BudgetAllocation {
   _id: string;
@@ -88,11 +99,13 @@ interface BudgetAllocation {
 ```
 
 ### Local Storage
+
 - Data persists between app sessions
 - User-specific budget storage
 - CRUD operations (Create, Read, Update)
 
 ### Validation
+
 - Percentage total must equal 100%
 - Monthly income is required
 - Currency selection is required
@@ -100,6 +113,7 @@ interface BudgetAllocation {
 ## Future Enhancements
 
 Consider adding:
+
 - Budget categories within Needs/Wants (housing, food, entertainment)
 - Expense tracking against budget
 - Monthly reports and analytics

@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import {
   Alert,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -87,7 +88,10 @@ export default function ProfileScreen() {
         <Text style={styles.title}>Profile</Text>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+      >
         <TouchableOpacity style={styles.menuItem} onPress={handleExportData}>
           <FontAwesome name="download" size={20} color={Colors.text} />
           <Text style={styles.menuItemText}>Export Data</Text>
@@ -106,7 +110,7 @@ export default function ProfileScreen() {
             Logout
           </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -126,6 +130,10 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.lg,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: Spacing.lg,
   },
   menuItem: {
     flexDirection: "row",

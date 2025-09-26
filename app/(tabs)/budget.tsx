@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -258,7 +259,11 @@ export default function BudgetScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {isEditMode ? (
           <View style={styles.form}>
             <Text style={styles.formTitle}>
@@ -372,7 +377,7 @@ export default function BudgetScreen() {
         ) : (
           renderBudgetOverview()
         )}
-      </View>
+      </ScrollView>
 
       {/* Currency Selection Modal */}
       <Modal
@@ -456,6 +461,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: Spacing.md,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: Spacing.lg,
   },
   emptyState: {
     flex: 1,
