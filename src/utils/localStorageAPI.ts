@@ -1,5 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// Budget APIs using local storage
+import { BudgetAllocation } from "../types/budget";
+
 // Local storage keys
 const KEYS = {
   USERS: "users",
@@ -233,9 +236,6 @@ export const growthAPI = {
   },
 };
 
-// Budget APIs using local storage
-import { BudgetAllocation } from '../types/budget';
-
 export const budgetAPI = {
   async getBudgetAllocation(userId: string): Promise<BudgetAllocation | null> {
     try {
@@ -272,8 +272,10 @@ export const budgetAPI = {
     userId: string
   ): Promise<BudgetAllocation> {
     try {
+      const existingBudget = await this.getBudgetAllocation(userId);
       const updatedBudget: BudgetAllocation = {
         ...budget,
+        createdAt: existingBudget?.createdAt || new Date(),
         updatedAt: new Date(),
       };
 

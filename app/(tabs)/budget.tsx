@@ -84,7 +84,7 @@ export default function BudgetScreen() {
     const needs = parseFloat(formData.needsPercentage) || 0;
     const wants = parseFloat(formData.wantsPercentage) || 0;
     const savings = parseFloat(formData.savingsPercentage) || 0;
-    
+
     const total = needs + wants + savings;
     return Math.abs(total - 100) < 0.01; // Allow for small floating point errors
   };
@@ -128,7 +128,10 @@ export default function BudgetScreen() {
       };
 
       if (budget) {
-        await budgetAPI.updateBudgetAllocation({...budgetData, _id: budget._id}, JSON.parse(userId));
+        await budgetAPI.updateBudgetAllocation(
+          { ...budgetData, _id: budget._id },
+          JSON.parse(userId)
+        );
       } else {
         await budgetAPI.saveBudgetAllocation(budgetData, JSON.parse(userId));
       }
@@ -160,7 +163,9 @@ export default function BudgetScreen() {
           <Text style={styles.incomeLabel}>Monthly Income</Text>
           <Text style={styles.incomeAmount}>
             {getCurrencySymbol(budget.currency)}
-            {budget.monthlyIncome.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+            {budget.monthlyIncome.toLocaleString("en-US", {
+              maximumFractionDigits: 2,
+            })}
           </Text>
         </View>
 
@@ -168,30 +173,42 @@ export default function BudgetScreen() {
           <View style={[styles.allocationCard, styles.needsCard]}>
             <FontAwesome name="home" size={24} color="#e74c3c" />
             <Text style={styles.allocationLabel}>Needs</Text>
-            <Text style={styles.allocationPercentage}>{budget.needs.percentage}%</Text>
+            <Text style={styles.allocationPercentage}>
+              {budget.needs.percentage}%
+            </Text>
             <Text style={styles.allocationAmount}>
               {getCurrencySymbol(budget.currency)}
-              {budget.needs.amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+              {budget.needs.amount.toLocaleString("en-US", {
+                maximumFractionDigits: 2,
+              })}
             </Text>
           </View>
 
           <View style={[styles.allocationCard, styles.wantsCard]}>
             <FontAwesome name="shopping-bag" size={24} color="#f39c12" />
             <Text style={styles.allocationLabel}>Wants</Text>
-            <Text style={styles.allocationPercentage}>{budget.wants.percentage}%</Text>
+            <Text style={styles.allocationPercentage}>
+              {budget.wants.percentage}%
+            </Text>
             <Text style={styles.allocationAmount}>
               {getCurrencySymbol(budget.currency)}
-              {budget.wants.amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+              {budget.wants.amount.toLocaleString("en-US", {
+                maximumFractionDigits: 2,
+              })}
             </Text>
           </View>
 
           <View style={[styles.allocationCard, styles.savingsCard]}>
             <FontAwesome name="bank" size={24} color="#27ae60" />
             <Text style={styles.allocationLabel}>Savings</Text>
-            <Text style={styles.allocationPercentage}>{budget.savings.percentage}%</Text>
+            <Text style={styles.allocationPercentage}>
+              {budget.savings.percentage}%
+            </Text>
             <Text style={styles.allocationAmount}>
               {getCurrencySymbol(budget.currency)}
-              {budget.savings.amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+              {budget.savings.amount.toLocaleString("en-US", {
+                maximumFractionDigits: 2,
+              })}
             </Text>
           </View>
         </View>
@@ -247,14 +264,16 @@ export default function BudgetScreen() {
             <Text style={styles.formTitle}>
               {budget ? "Edit Budget" : "Create Budget"}
             </Text>
-            
+
             <TextInput
               style={styles.input}
               placeholder="Monthly Income"
               placeholderTextColor={Colors.textLight}
               keyboardType="decimal-pad"
               value={formData.monthlyIncome}
-              onChangeText={(text) => setFormData({ ...formData, monthlyIncome: text })}
+              onChangeText={(text) =>
+                setFormData({ ...formData, monthlyIncome: text })
+              }
             />
 
             <TouchableOpacity
@@ -264,60 +283,84 @@ export default function BudgetScreen() {
               <Text style={styles.currencySelectorText}>
                 Currency: {formData.currency}
               </Text>
-              <FontAwesome name="chevron-down" size={16} color={Colors.textLight} />
+              <FontAwesome
+                name="chevron-down"
+                size={16}
+                color={Colors.textLight}
+              />
             </TouchableOpacity>
 
             <View style={styles.percentageSection}>
               <Text style={styles.sectionTitle}>Allocation Percentages</Text>
-              
+
               <View style={styles.percentageRow}>
-                <Text style={styles.percentageLabel}>Needs (50-30-20 rule: 50%)</Text>
+                <Text style={styles.percentageLabel}>
+                  Needs (50-30-20 rule: 50%)
+                </Text>
                 <View style={styles.percentageInputContainer}>
                   <TextInput
                     style={styles.percentageInput}
                     keyboardType="decimal-pad"
                     value={formData.needsPercentage}
-                    onChangeText={(text) => setFormData({ ...formData, needsPercentage: text })}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, needsPercentage: text })
+                    }
                   />
                   <Text style={styles.percentSymbol}>%</Text>
                 </View>
               </View>
 
               <View style={styles.percentageRow}>
-                <Text style={styles.percentageLabel}>Wants (50-30-20 rule: 30%)</Text>
+                <Text style={styles.percentageLabel}>
+                  Wants (50-30-20 rule: 30%)
+                </Text>
                 <View style={styles.percentageInputContainer}>
                   <TextInput
                     style={styles.percentageInput}
                     keyboardType="decimal-pad"
                     value={formData.wantsPercentage}
-                    onChangeText={(text) => setFormData({ ...formData, wantsPercentage: text })}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, wantsPercentage: text })
+                    }
                   />
                   <Text style={styles.percentSymbol}>%</Text>
                 </View>
               </View>
 
               <View style={styles.percentageRow}>
-                <Text style={styles.percentageLabel}>Savings (50-30-20 rule: 20%)</Text>
+                <Text style={styles.percentageLabel}>
+                  Savings (50-30-20 rule: 20%)
+                </Text>
                 <View style={styles.percentageInputContainer}>
                   <TextInput
                     style={styles.percentageInput}
                     keyboardType="decimal-pad"
                     value={formData.savingsPercentage}
-                    onChangeText={(text) => setFormData({ ...formData, savingsPercentage: text })}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, savingsPercentage: text })
+                    }
                   />
                   <Text style={styles.percentSymbol}>%</Text>
                 </View>
               </View>
 
               <View style={styles.totalRow}>
-                <Text style={[styles.totalText, getCurrentTotal() !== 100 && styles.totalError]}>
+                <Text
+                  style={[
+                    styles.totalText,
+                    getCurrentTotal() !== 100 && styles.totalError,
+                  ]}
+                >
                   Total: {getCurrentTotal()}%
                 </Text>
               </View>
             </View>
 
             <TouchableOpacity
-              style={[styles.submitButton, getCurrentTotal() !== 100 && styles.submitButtonDisabled]}
+              style={[
+                styles.submitButton,
+                getCurrentTotal() !== 100 && styles.submitButtonDisabled,
+              ]}
               onPress={handleSubmit}
               disabled={getCurrentTotal() !== 100}
             >
@@ -352,7 +395,8 @@ export default function BudgetScreen() {
                 <TouchableOpacity
                   style={[
                     styles.dropdownItem,
-                    formData.currency === currency.code && styles.dropdownItemSelected,
+                    formData.currency === currency.code &&
+                      styles.dropdownItemSelected,
                   ]}
                   onPress={() => {
                     setFormData({ ...formData, currency: currency.code });
@@ -362,12 +406,18 @@ export default function BudgetScreen() {
                   <View style={styles.currencyInfo}>
                     <Text style={styles.currencySymbol}>{currency.symbol}</Text>
                     <View>
-                      <Text style={styles.dropdownItemText}>{currency.code}</Text>
+                      <Text style={styles.dropdownItemText}>
+                        {currency.code}
+                      </Text>
                       <Text style={styles.currencyName}>{currency.name}</Text>
                     </View>
                   </View>
                   {formData.currency === currency.code && (
-                    <FontAwesome name="check" size={16} color={Colors.primary} />
+                    <FontAwesome
+                      name="check"
+                      size={16}
+                      color={Colors.primary}
+                    />
                   )}
                 </TouchableOpacity>
               )}
