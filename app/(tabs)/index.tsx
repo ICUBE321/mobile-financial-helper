@@ -1,23 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import {
-  Dimensions,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { VictoryPie } from "victory-native";
 import { Asset } from "../../src/types/asset";
-import { assetAPI } from "../../src/utils/api";
+import { assetAPI, growthAPI } from "../../src/utils/localStorageAPI";
 import { Colors, Spacing, Typography } from "../../src/utils/theme";
 
 export default function OverviewScreen() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [totalValue, setTotalValue] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const screenWidth = Dimensions.get("window").width;
 
   const loadAssets = async () => {
     try {
@@ -31,6 +28,9 @@ export default function OverviewScreen() {
           0
         );
         setTotalValue(total);
+
+        // Auto-calculate and save growth data
+        await growthAPI.calculateAndSaveGrowth(JSON.parse(userId));
       }
     } catch (error) {
       console.error("Error loading assets:", error);
@@ -47,11 +47,6 @@ export default function OverviewScreen() {
     setRefreshing(false);
   };
 
-  const chartData = assets.map((asset) => ({
-    x: asset.name,
-    y: asset.value,
-  }));
-
   return (
     <ScrollView
       style={styles.container}
@@ -64,20 +59,34 @@ export default function OverviewScreen() {
         <Text style={styles.totalValue}>
           ${totalValue.toLocaleString("en-US", { maximumFractionDigits: 2 })}
         </Text>
+        <Text style={styles.currencyNote}>Mixed currencies aggregated</Text>
       </View>
 
       {assets.length > 0 ? (
         <>
           <View style={styles.chartContainer}>
-            <VictoryPie
-              data={chartData}
-              width={screenWidth * 0.9}
-              height={screenWidth * 0.9}
-              colorScale="qualitative"
-              innerRadius={50}
-              labelRadius={70}
-              style={{ labels: { fill: Colors.text, fontSize: 12 } }}
-            />
+            <Text style={styles.chartTitle}>Portfolio Breakdown</Text>
+            {assets.map((asset, index) => {
+              const percentage = ((asset.value / totalValue) * 100).toFixed(1);
+              return (
+                <View key={asset._id || index} style={styles.chartItem}>
+                  <View style={styles.chartItemInfo}>
+                    <Text style={styles.chartItemName}>{asset.name}</Text>
+                    <Text style={styles.chartItemPercentage}>
+                      {percentage}%
+                    </Text>
+                  </View>
+                  <View style={styles.progressBarContainer}>
+                    <View
+                      style={[
+                        styles.progressBar,
+                        { width: `${percentage}%` as any },
+                      ]}
+                    />
+                  </View>
+                </View>
+              );
+            })}
           </View>
 
           <View style={styles.assetList}>
@@ -124,6 +133,12 @@ const styles = StyleSheet.create({
     ...Typography.heading1,
     color: Colors.background,
   },
+  currencyNote: {
+    fontSize: 12,
+    color: Colors.background,
+    opacity: 0.8,
+    marginTop: 2,
+  },
   chartContainer: {
     alignItems: "center",
     padding: Spacing.lg,
@@ -161,5 +176,41 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.textLight,
     textAlign: "center",
+  },
+  chartTitle: {
+    ...Typography.heading3,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+    textAlign: "center",
+  },
+  chartItem: {
+    marginBottom: Spacing.md,
+  },
+  chartItemInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.xs,
+  },
+  chartItemName: {
+    ...Typography.body,
+    color: Colors.text,
+    fontWeight: "600",
+  },
+  chartItemPercentage: {
+    ...Typography.body,
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: Colors.primary,
+    borderRadius: 4,
   },
 });

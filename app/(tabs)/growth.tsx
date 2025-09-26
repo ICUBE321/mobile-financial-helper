@@ -1,20 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import {
-  Dimensions,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import {
-  VictoryAxis,
-  VictoryChart,
-  VictoryLine,
-  VictoryTheme,
-} from "victory-native";
-import { growthAPI } from "../../src/utils/api";
+import { growthAPI } from "../../src/utils/localStorageAPI";
 import { Colors, Spacing, Typography } from "../../src/utils/theme";
 
 interface GrowthData {
@@ -29,7 +22,6 @@ export default function GrowthScreen() {
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [netGain, setNetGain] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const screenWidth = Dimensions.get("window").width;
 
   const loadGrowthData = async () => {
     try {
@@ -41,7 +33,8 @@ export default function GrowthScreen() {
         // Calculate net gain
         if (data.length >= 2) {
           const initialValue =
-            data.find((item) => item.isInitialValue)?.portfolioValue || 0;
+            data.find((item: GrowthData) => item.isInitialValue)
+              ?.portfolioValue || 0;
           const currentValue = data[data.length - 1].portfolioValue;
           setNetGain(currentValue - initialValue);
         }
@@ -60,13 +53,6 @@ export default function GrowthScreen() {
     await loadGrowthData();
     setRefreshing(false);
   };
-
-  const chartData = growthData
-    .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
-    .map((item) => ({
-      x: item.month,
-      y: item.portfolioValue,
-    }));
 
   return (
     <ScrollView
@@ -91,31 +77,51 @@ export default function GrowthScreen() {
       {growthData.length > 0 ? (
         <>
           <View style={styles.chartContainer}>
-            <VictoryChart
-              width={screenWidth * 0.9}
-              theme={VictoryTheme.material}
-              domainPadding={{ x: 20 }}
-            >
-              <VictoryAxis
-                tickFormat={(x) => x}
-                style={{
-                  tickLabels: { angle: -45, fontSize: 8, padding: 20 },
-                }}
-              />
-              <VictoryAxis
-                dependentAxis
-                tickFormat={(y) => `$${y}`}
-                style={{
-                  tickLabels: { fontSize: 8 },
-                }}
-              />
-              <VictoryLine
-                data={chartData}
-                style={{
-                  data: { stroke: Colors.primary },
-                }}
-              />
-            </VictoryChart>
+            <Text style={styles.chartTitle}>Growth Trend</Text>
+            <View style={styles.trendContainer}>
+              {growthData
+                .sort(
+                  (a, b) =>
+                    new Date(a.month).getTime() - new Date(b.month).getTime()
+                )
+                .map((item, index) => {
+                  const isLast = index === growthData.length - 1;
+                  const trend =
+                    index > 0
+                      ? item.portfolioValue >
+                        growthData[index - 1].portfolioValue
+                        ? "up"
+                        : item.portfolioValue <
+                          growthData[index - 1].portfolioValue
+                        ? "down"
+                        : "same"
+                      : "same";
+
+                  return (
+                    <View key={item._id} style={styles.trendItem}>
+                      <Text style={styles.trendMonth}>{item.month}</Text>
+                      <View style={styles.trendValueContainer}>
+                        <Text style={styles.trendValue}>
+                          $
+                          {item.portfolioValue.toLocaleString("en-US", {
+                            maximumFractionDigits: 2,
+                          })}
+                        </Text>
+                        {trend === "up" && (
+                          <Text style={styles.trendUp}>↗️</Text>
+                        )}
+                        {trend === "down" && (
+                          <Text style={styles.trendDown}>↘️</Text>
+                        )}
+                        {trend === "same" && (
+                          <Text style={styles.trendSame}>→</Text>
+                        )}
+                      </View>
+                      {!isLast && <View style={styles.trendLine} />}
+                    </View>
+                  );
+                })}
+            </View>
           </View>
 
           <View style={styles.statsList}>
@@ -201,5 +207,54 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.textLight,
     textAlign: "center",
+  },
+  chartTitle: {
+    ...Typography.heading3,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+    textAlign: "center",
+  },
+  trendContainer: {
+    paddingVertical: Spacing.md,
+  },
+  trendItem: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    position: "relative",
+  },
+  trendMonth: {
+    ...Typography.bodySmall,
+    color: Colors.textLight,
+    marginBottom: Spacing.xs,
+  },
+  trendValueContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  trendValue: {
+    ...Typography.body,
+    color: Colors.text,
+    fontWeight: "600",
+  },
+  trendUp: {
+    fontSize: 16,
+    color: Colors.success,
+  },
+  trendDown: {
+    fontSize: 16,
+    color: Colors.error,
+  },
+  trendSame: {
+    fontSize: 16,
+    color: Colors.textLight,
+  },
+  trendLine: {
+    position: "absolute",
+    right: 20,
+    top: "50%",
+    width: 2,
+    height: 30,
+    backgroundColor: Colors.border,
   },
 });

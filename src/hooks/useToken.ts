@@ -26,7 +26,7 @@ const useToken = () => {
       await AsyncStorage.setItem("token", JSON.stringify(userToken));
       await AsyncStorage.setItem("userId", JSON.stringify(userId));
       setToken(userToken);
-      router.replace("/");
+      router.replace("/(tabs)");
     } catch (error) {
       console.error("Error saving token:", error);
     }
@@ -37,7 +37,7 @@ const useToken = () => {
       await AsyncStorage.removeItem("token");
       await AsyncStorage.removeItem("userId");
       setToken(null);
-      router.replace("/login");
+      router.replace("/(auth)/login");
     } catch (error) {
       console.error("Error removing token:", error);
     }

@@ -3,5 +3,6 @@ export interface Asset {
   name: string;
   type: string;
   value: number;
+  currency: string;
   userId: string;
 }

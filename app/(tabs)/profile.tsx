@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { storageUtils } from "../../src/utils/localStorageAPI";
 import {
   BorderRadius,
   Colors,
@@ -17,6 +18,50 @@ import {
 } from "../../src/utils/theme";
 
 export default function ProfileScreen() {
+  const handleExportData = async () => {
+    try {
+      const data = await storageUtils.exportData();
+      if (data) {
+        Alert.alert("Export Complete", "Data exported successfully");
+        // Could implement sharing or saving the data string here
+      } else {
+        Alert.alert("Error", "Failed to export data");
+      }
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      Alert.alert("Error", "Failed to export data");
+    }
+  };
+
+  const handleClearData = async () => {
+    Alert.alert(
+      "Clear All Data",
+      "This will permanently delete all your data. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear All",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await storageUtils.clearAllData();
+              await AsyncStorage.multiRemove(["token", "userId"]);
+              Alert.alert("Success", "All data has been cleared", [
+                {
+                  text: "OK",
+                  onPress: () => router.replace("/(auth)/login"),
+                },
+              ]);
+            } catch (error) {
+              console.error("Error clearing data:", error);
+              Alert.alert("Error", "Failed to clear data");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleLogout = async () => {
     Alert.alert("Confirm Logout", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
@@ -25,7 +70,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await AsyncStorage.multiRemove(["token", "userId"]);
-            router.replace("/login");
+            router.replace("/(auth)/login");
           } catch (error) {
             console.error("Error during logout:", error);
             Alert.alert("Error", "Failed to log out");
@@ -43,6 +88,18 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.content}>
+        <TouchableOpacity style={styles.menuItem} onPress={handleExportData}>
+          <FontAwesome name="download" size={20} color={Colors.text} />
+          <Text style={styles.menuItemText}>Export Data</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={handleClearData}>
+          <FontAwesome name="trash" size={20} color={Colors.error} />
+          <Text style={[styles.menuItemText, { color: Colors.error }]}>
+            Clear All Data
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
           <FontAwesome name="sign-out" size={20} color={Colors.error} />
           <Text style={[styles.menuItemText, { color: Colors.error }]}>
