@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Budget APIs using local storage
-import { BudgetAllocation } from "../types/budget";
+import { BudgetAllocation, BudgetItem } from "../types/budget";
 
 // Local storage keys
 const KEYS = {
@@ -248,7 +248,41 @@ export const budgetAPI = {
   async getBudgetAllocation(userId: string): Promise<BudgetAllocation | null> {
     try {
       const data = await AsyncStorage.getItem(`budget_${userId}`);
-      return data ? JSON.parse(data) : null;
+      if (!data) return null;
+
+      const budget = JSON.parse(data);
+
+      // Migrate legacy budgets that don't have items/spent properties
+      if (budget && (!budget.needs.items || budget.needs.spent === undefined)) {
+        const migratedBudget = {
+          ...budget,
+          needs: {
+            ...budget.needs,
+            items: budget.needs.items || [],
+            spent: budget.needs.spent || 0,
+          },
+          wants: {
+            ...budget.wants,
+            items: budget.wants.items || [],
+            spent: budget.wants.spent || 0,
+          },
+          savings: {
+            ...budget.savings,
+            items: budget.savings.items || [],
+            spent: budget.savings.spent || 0,
+          },
+          updatedAt: new Date(),
+        };
+
+        // Save the migrated budget back to storage
+        await AsyncStorage.setItem(
+          `budget_${userId}`,
+          JSON.stringify(migratedBudget)
+        );
+        return migratedBudget;
+      }
+
+      return budget;
     } catch (error) {
       console.error("Error getting budget allocation:", error);
       throw error;
@@ -294,6 +328,97 @@ export const budgetAPI = {
       return updatedBudget;
     } catch (error) {
       console.error("Error updating budget allocation:", error);
+      throw error;
+    }
+  },
+
+  async addBudgetItem(
+    userId: string,
+    category: "needs" | "wants" | "savings",
+    item: Omit<BudgetItem, "_id" | "createdAt" | "category">
+  ): Promise<BudgetAllocation> {
+    try {
+      const budget = await this.getBudgetAllocation(userId);
+      if (!budget) throw new Error("Budget not found");
+
+      const newItem: BudgetItem = {
+        ...item,
+        _id: Date.now().toString(),
+        category,
+        createdAt: new Date(),
+      };
+
+      budget[category].items.push(newItem);
+      budget[category].spent = budget[category].items.reduce(
+        (sum, item) => sum + item.amount,
+        0
+      );
+      budget.updatedAt = new Date();
+
+      await AsyncStorage.setItem(`budget_${userId}`, JSON.stringify(budget));
+      return budget;
+    } catch (error) {
+      console.error("Error adding budget item:", error);
+      throw error;
+    }
+  },
+
+  async updateBudgetItem(
+    userId: string,
+    category: "needs" | "wants" | "savings",
+    itemId: string,
+    updates: Partial<Omit<BudgetItem, "_id" | "createdAt" | "category">>
+  ): Promise<BudgetAllocation> {
+    try {
+      const budget = await this.getBudgetAllocation(userId);
+      if (!budget) throw new Error("Budget not found");
+
+      const itemIndex = budget[category].items.findIndex(
+        (item) => item._id === itemId
+      );
+      if (itemIndex === -1) throw new Error("Budget item not found");
+
+      budget[category].items[itemIndex] = {
+        ...budget[category].items[itemIndex],
+        ...updates,
+      };
+
+      budget[category].spent = budget[category].items.reduce(
+        (sum, item) => sum + item.amount,
+        0
+      );
+      budget.updatedAt = new Date();
+
+      await AsyncStorage.setItem(`budget_${userId}`, JSON.stringify(budget));
+      return budget;
+    } catch (error) {
+      console.error("Error updating budget item:", error);
+      throw error;
+    }
+  },
+
+  async deleteBudgetItem(
+    userId: string,
+    category: "needs" | "wants" | "savings",
+    itemId: string
+  ): Promise<BudgetAllocation> {
+    try {
+      const budget = await this.getBudgetAllocation(userId);
+      if (!budget) throw new Error("Budget not found");
+
+      budget[category].items = budget[category].items.filter(
+        (item) => item._id !== itemId
+      );
+      budget[category].spent = budget[category].items.reduce(
+        (sum, item) => sum + item.amount,
+        0
+      );
+      budget.updatedAt = new Date();
+
+      await AsyncStorage.setItem(`budget_${userId}`, JSON.stringify(budget));
+      return budget;
+    } catch (error) {
+      console.error("Error deleting budget item:", error);
       throw error;
     }
   },

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Wealth Manager",
-    "slug": "wealth-manager",
+    "slug": "WealthAndAssetManagerMobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.jpg",
@@ -46,6 +46,10 @@
       "eas": {
         "projectId": "41f2ee23-268f-4126-aa5b-82dccb838cfc"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/41f2ee23-268f-4126-aa5b-82dccb838cfc"
     }
   }
 }

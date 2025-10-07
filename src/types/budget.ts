@@ -1,3 +1,12 @@
+export interface BudgetItem {
+  _id: string;
+  name: string;
+  amount: number;
+  category: "needs" | "wants" | "savings";
+  description?: string;
+  createdAt: Date;
+}
+
 export interface BudgetAllocation {
   _id: string;
   userId: string;
@@ -5,14 +14,20 @@ export interface BudgetAllocation {
   needs: {
     amount: number;
     percentage: number;
+    items: BudgetItem[];
+    spent: number;
   };
   wants: {
     amount: number;
     percentage: number;
+    items: BudgetItem[];
+    spent: number;
   };
   savings: {
     amount: number;
     percentage: number;
+    items: BudgetItem[];
+    spent: number;
   };
   currency: string;
   createdAt: Date;

@@ -14,7 +14,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { BudgetAllocation, BudgetFormData } from "../../src/types/budget";
+import {
+  BudgetAllocation,
+  BudgetFormData,
+  BudgetItem,
+} from "../../src/types/budget";
 import { budgetAPI } from "../../src/utils/localStorageAPI";
 import {
   BorderRadius,
@@ -34,6 +38,19 @@ export default function BudgetScreen() {
     currency: "USD",
   });
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
+
+  // Budget items modal state
+  const [showBudgetItemsModal, setShowBudgetItemsModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<
+    "needs" | "wants" | "savings" | null
+  >(null);
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [newItemData, setNewItemData] = useState({
+    name: "",
+    amount: "",
+    description: "",
+  });
+  const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
 
   // Common currencies (reuse from assets screen)
   const currencies = [
@@ -60,14 +77,35 @@ export default function BudgetScreen() {
       const userId = await AsyncStorage.getItem("userId");
       if (userId) {
         const data = await budgetAPI.getBudgetAllocation(JSON.parse(userId));
-        setBudget(data);
+
+        // Handle legacy budgets by initializing missing properties
         if (data) {
+          const normalizedBudget = {
+            ...data,
+            needs: {
+              ...data.needs,
+              items: data.needs.items || [],
+              spent: data.needs.spent || 0,
+            },
+            wants: {
+              ...data.wants,
+              items: data.wants.items || [],
+              spent: data.wants.spent || 0,
+            },
+            savings: {
+              ...data.savings,
+              items: data.savings.items || [],
+              spent: data.savings.spent || 0,
+            },
+          };
+
+          setBudget(normalizedBudget);
           setFormData({
-            monthlyIncome: data.monthlyIncome.toString(),
-            needsPercentage: data.needs.percentage.toString(),
-            wantsPercentage: data.wants.percentage.toString(),
-            savingsPercentage: data.savings.percentage.toString(),
-            currency: data.currency,
+            monthlyIncome: normalizedBudget.monthlyIncome.toString(),
+            needsPercentage: normalizedBudget.needs.percentage.toString(),
+            wantsPercentage: normalizedBudget.wants.percentage.toString(),
+            savingsPercentage: normalizedBudget.savings.percentage.toString(),
+            currency: normalizedBudget.currency,
           });
         }
       }
@@ -116,14 +154,20 @@ export default function BudgetScreen() {
         needs: {
           amount: (income * needsPercentage) / 100,
           percentage: needsPercentage,
+          items: budget?.needs.items || [],
+          spent: budget?.needs.spent || 0,
         },
         wants: {
           amount: (income * wantsPercentage) / 100,
           percentage: wantsPercentage,
+          items: budget?.wants.items || [],
+          spent: budget?.wants.spent || 0,
         },
         savings: {
           amount: (income * savingsPercentage) / 100,
           percentage: savingsPercentage,
+          items: budget?.savings.items || [],
+          spent: budget?.savings.spent || 0,
         },
         currency: formData.currency,
       };
@@ -171,7 +215,10 @@ export default function BudgetScreen() {
         </View>
 
         <View style={styles.allocationGrid}>
-          <View style={[styles.allocationCard, styles.needsCard]}>
+          <TouchableOpacity
+            style={[styles.allocationCard, styles.needsCard]}
+            onPress={() => openCategoryModal("needs")}
+          >
             <FontAwesome name="home" size={24} color="#e74c3c" />
             <Text style={styles.allocationLabel}>Needs</Text>
             <Text style={styles.allocationPercentage}>
@@ -183,9 +230,33 @@ export default function BudgetScreen() {
                 maximumFractionDigits: 2,
               })}
             </Text>
-          </View>
+            <View style={styles.spentSection}>
+              <Text
+                style={[
+                  styles.spentText,
+                  {
+                    color: getStatusColor(
+                      budget.needs.spent || 0,
+                      budget.needs.amount
+                    ),
+                  },
+                ]}
+              >
+                Spent: {getCurrencySymbol(budget.currency)}
+                {(budget.needs.spent || 0).toLocaleString("en-US", {
+                  maximumFractionDigits: 2,
+                })}
+              </Text>
+              <Text style={styles.itemCount}>
+                {(budget.needs.items || []).length} items
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-          <View style={[styles.allocationCard, styles.wantsCard]}>
+          <TouchableOpacity
+            style={[styles.allocationCard, styles.wantsCard]}
+            onPress={() => openCategoryModal("wants")}
+          >
             <FontAwesome name="shopping-bag" size={24} color="#f39c12" />
             <Text style={styles.allocationLabel}>Wants</Text>
             <Text style={styles.allocationPercentage}>
@@ -197,9 +268,33 @@ export default function BudgetScreen() {
                 maximumFractionDigits: 2,
               })}
             </Text>
-          </View>
+            <View style={styles.spentSection}>
+              <Text
+                style={[
+                  styles.spentText,
+                  {
+                    color: getStatusColor(
+                      budget.wants.spent || 0,
+                      budget.wants.amount
+                    ),
+                  },
+                ]}
+              >
+                Spent: {getCurrencySymbol(budget.currency)}
+                {(budget.wants.spent || 0).toLocaleString("en-US", {
+                  maximumFractionDigits: 2,
+                })}
+              </Text>
+              <Text style={styles.itemCount}>
+                {(budget.wants.items || []).length} items
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-          <View style={[styles.allocationCard, styles.savingsCard]}>
+          <TouchableOpacity
+            style={[styles.allocationCard, styles.savingsCard]}
+            onPress={() => openCategoryModal("savings")}
+          >
             <FontAwesome name="bank" size={24} color="#27ae60" />
             <Text style={styles.allocationLabel}>Savings</Text>
             <Text style={styles.allocationPercentage}>
@@ -211,7 +306,28 @@ export default function BudgetScreen() {
                 maximumFractionDigits: 2,
               })}
             </Text>
-          </View>
+            <View style={styles.spentSection}>
+              <Text
+                style={[
+                  styles.spentText,
+                  {
+                    color: getStatusColor(
+                      budget.savings.spent || 0,
+                      budget.savings.amount
+                    ),
+                  },
+                ]}
+              >
+                Spent: {getCurrencySymbol(budget.currency)}
+                {(budget.savings.spent || 0).toLocaleString("en-US", {
+                  maximumFractionDigits: 2,
+                })}
+              </Text>
+              <Text style={styles.itemCount}>
+                {(budget.savings.items || []).length} items
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -222,6 +338,138 @@ export default function BudgetScreen() {
     const wants = parseFloat(formData.wantsPercentage) || 0;
     const savings = parseFloat(formData.savingsPercentage) || 0;
     return needs + wants + savings;
+  };
+
+  const handleAddBudgetItem = async () => {
+    try {
+      if (!newItemData.name || !newItemData.amount || !selectedCategory) {
+        Alert.alert("Error", "Please fill in all required fields");
+        return;
+      }
+
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) throw new Error("User not found");
+
+      const updatedBudget = await budgetAPI.addBudgetItem(
+        JSON.parse(userId),
+        selectedCategory,
+        {
+          name: newItemData.name,
+          amount: parseFloat(newItemData.amount),
+          description: newItemData.description,
+        }
+      );
+
+      setBudget(updatedBudget);
+      setNewItemData({ name: "", amount: "", description: "" });
+      setShowAddItemModal(false);
+      setShowBudgetItemsModal(true); // Reopen the items modal
+    } catch (error) {
+      console.error("Error adding budget item:", error);
+      Alert.alert("Error", "Failed to add budget item");
+    }
+  };
+
+  const handleUpdateBudgetItem = async () => {
+    try {
+      if (
+        !editingItem ||
+        !newItemData.name ||
+        !newItemData.amount ||
+        !selectedCategory
+      ) {
+        Alert.alert("Error", "Please fill in all required fields");
+        return;
+      }
+
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) throw new Error("User not found");
+
+      const updatedBudget = await budgetAPI.updateBudgetItem(
+        JSON.parse(userId),
+        selectedCategory,
+        editingItem._id,
+        {
+          name: newItemData.name,
+          amount: parseFloat(newItemData.amount),
+          description: newItemData.description,
+        }
+      );
+
+      setBudget(updatedBudget);
+      setEditingItem(null);
+      setNewItemData({ name: "", amount: "", description: "" });
+      setShowAddItemModal(false);
+      setShowBudgetItemsModal(true); // Reopen the items modal
+    } catch (error) {
+      console.error("Error updating budget item:", error);
+      Alert.alert("Error", "Failed to update budget item");
+    }
+  };
+
+  const handleDeleteBudgetItem = async (itemId: string) => {
+    try {
+      if (!selectedCategory) return;
+
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) throw new Error("User not found");
+
+      Alert.alert(
+        "Delete Item",
+        "Are you sure you want to delete this budget item?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              const updatedBudget = await budgetAPI.deleteBudgetItem(
+                JSON.parse(userId),
+                selectedCategory,
+                itemId
+              );
+              setBudget(updatedBudget);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error deleting budget item:", error);
+      Alert.alert("Error", "Failed to delete budget item");
+    }
+  };
+
+  const openCategoryModal = (category: "needs" | "wants" | "savings") => {
+    setSelectedCategory(category);
+    setShowBudgetItemsModal(true);
+  };
+
+  const openAddItemModal = () => {
+    setEditingItem(null);
+    setNewItemData({ name: "", amount: "", description: "" });
+    setShowBudgetItemsModal(false); // Close the items modal first
+    setShowAddItemModal(true);
+  };
+
+  const openEditItemModal = (item: BudgetItem) => {
+    setEditingItem(item);
+    setNewItemData({
+      name: item.name,
+      amount: item.amount.toString(),
+      description: item.description || "",
+    });
+    setShowBudgetItemsModal(false); // Close the items modal first
+    setShowAddItemModal(true);
+  };
+
+  const getSpentPercentage = (spent: number, allocated: number): number => {
+    return allocated > 0 ? (spent / allocated) * 100 : 0;
+  };
+
+  const getStatusColor = (spent: number, allocated: number): string => {
+    const percentage = getSpentPercentage(spent, allocated);
+    if (percentage <= 100) return Colors.success;
+    return Colors.error;
   };
 
   return (
@@ -429,6 +677,211 @@ export default function BudgetScreen() {
             />
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Budget Items Modal */}
+      <Modal
+        visible={showBudgetItemsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBudgetItemsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.budgetItemsContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectedCategory
+                  ? selectedCategory.charAt(0).toUpperCase() +
+                    selectedCategory.slice(1) +
+                    " Items"
+                  : "Items"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowBudgetItemsModal(false)}
+                style={styles.closeButton}
+              >
+                <FontAwesome name="times" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {budget && selectedCategory && (
+              <View style={styles.budgetSummary}>
+                <Text style={styles.budgetSummaryText}>
+                  Budget: {getCurrencySymbol(budget.currency)}
+                  {budget[selectedCategory].amount.toLocaleString("en-US", {
+                    maximumFractionDigits: 2,
+                  })}
+                </Text>
+                <Text
+                  style={[
+                    styles.budgetSummaryText,
+                    {
+                      color: getStatusColor(
+                        budget[selectedCategory].spent || 0,
+                        budget[selectedCategory].amount
+                      ),
+                    },
+                  ]}
+                >
+                  Spent: {getCurrencySymbol(budget.currency)}
+                  {(budget[selectedCategory].spent || 0).toLocaleString(
+                    "en-US",
+                    {
+                      maximumFractionDigits: 2,
+                    }
+                  )}
+                </Text>
+                <Text style={styles.budgetSummaryText}>
+                  Remaining: {getCurrencySymbol(budget.currency)}
+                  {(
+                    budget[selectedCategory].amount -
+                    (budget[selectedCategory].spent || 0)
+                  ).toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+            )}
+
+            <FlatList
+              data={
+                budget && selectedCategory ? budget[selectedCategory].items : []
+              }
+              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => (
+                <View style={styles.budgetItemRow}>
+                  <View style={styles.budgetItemInfo}>
+                    <Text style={styles.budgetItemName}>{item.name}</Text>
+                    {item.description && (
+                      <Text style={styles.budgetItemDescription}>
+                        {item.description}
+                      </Text>
+                    )}
+                    <Text style={styles.budgetItemAmount}>
+                      {getCurrencySymbol(budget?.currency || "USD")}
+                      {item.amount.toLocaleString("en-US", {
+                        maximumFractionDigits: 2,
+                      })}
+                    </Text>
+                  </View>
+                  <View style={styles.budgetItemActions}>
+                    <TouchableOpacity
+                      onPress={() => openEditItemModal(item)}
+                      style={styles.actionButton}
+                    >
+                      <FontAwesome
+                        name="edit"
+                        size={16}
+                        color={Colors.primary}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteBudgetItem(item._id)}
+                      style={styles.actionButton}
+                    >
+                      <FontAwesome
+                        name="trash"
+                        size={16}
+                        color={Colors.error}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyItemsText}>No items added yet</Text>
+              }
+            />
+
+            <TouchableOpacity
+              style={styles.addItemButton}
+              onPress={openAddItemModal}
+            >
+              <FontAwesome name="plus" size={16} color={Colors.background} />
+              <Text style={styles.addItemButtonText}>Add Item</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add/Edit Item Modal */}
+      <Modal
+        visible={showAddItemModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddItemModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={styles.addItemContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingItem ? "Edit Item" : "Add Item"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowAddItemModal(false)}
+                style={styles.closeButton}
+              >
+                <FontAwesome name="times" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.addItemForm}>
+              <TextInput
+                style={styles.input}
+                placeholder="Item name"
+                placeholderTextColor={Colors.textLight}
+                value={newItemData.name}
+                onChangeText={(text) =>
+                  setNewItemData({ ...newItemData, name: text })
+                }
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Amount"
+                placeholderTextColor={Colors.textLight}
+                keyboardType="decimal-pad"
+                value={newItemData.amount}
+                onChangeText={(text) =>
+                  setNewItemData({ ...newItemData, amount: text })
+                }
+              />
+
+              <TextInput
+                style={[styles.input, styles.descriptionInput]}
+                placeholder="Description (optional)"
+                placeholderTextColor={Colors.textLight}
+                multiline
+                numberOfLines={3}
+                value={newItemData.description}
+                onChangeText={(text) =>
+                  setNewItemData({ ...newItemData, description: text })
+                }
+              />
+
+              <View style={styles.addItemActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setShowAddItemModal(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={
+                    editingItem ? handleUpdateBudgetItem : handleAddBudgetItem
+                  }
+                >
+                  <Text style={styles.saveButtonText}>
+                    {editingItem ? "Update" : "Add"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
   );
@@ -728,5 +1181,176 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textLight,
     marginTop: 2,
+  },
+
+  // Budget items styles
+  spentSection: {
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    width: "100%",
+  },
+  spentText: {
+    ...Typography.bodySmall,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  itemCount: {
+    ...Typography.bodySmall,
+    color: Colors.textLight,
+    textAlign: "center",
+    marginTop: 2,
+  },
+
+  // Modal styles
+  budgetItemsContainer: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
+    width: "90%",
+    maxHeight: "80%",
+    padding: Spacing.md,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    ...Typography.heading2,
+    color: Colors.text,
+  },
+  closeButton: {
+    padding: Spacing.sm,
+  },
+  budgetSummary: {
+    backgroundColor: Colors.primary + "20",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
+  },
+  budgetSummaryText: {
+    ...Typography.body,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  budgetItemRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  budgetItemInfo: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  budgetItemName: {
+    ...Typography.body,
+    color: Colors.text,
+    fontWeight: "600",
+  },
+  budgetItemDescription: {
+    ...Typography.bodySmall,
+    color: Colors.textLight,
+    marginTop: 2,
+  },
+  budgetItemAmount: {
+    ...Typography.body,
+    color: Colors.primary,
+    fontWeight: "600",
+    marginTop: Spacing.xs,
+  },
+  budgetItemActions: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  actionButton: {
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.background,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  emptyItemsText: {
+    ...Typography.body,
+    color: Colors.textLight,
+    textAlign: "center",
+    padding: Spacing.xl,
+  },
+  addItemButton: {
+    backgroundColor: Colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  addItemButtonText: {
+    color: Colors.background,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  // Add/Edit Item Modal styles
+  addItemContainer: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.lg,
+    width: "90%",
+    padding: Spacing.lg,
+  },
+  addItemForm: {
+    gap: Spacing.md,
+  },
+  descriptionInput: {
+    height: 80,
+    textAlignVertical: "top",
+  },
+  addItemActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: Spacing.lg,
+    gap: Spacing.md,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+  },
+  saveButtonText: {
+    color: Colors.background,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

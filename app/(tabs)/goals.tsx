@@ -25,6 +25,7 @@ interface GoalField {
   name: string;
   percentage: number;
   amount: number;
+  targetAmount: number;
 }
 
 export default function GoalsScreen() {
@@ -126,6 +127,7 @@ export default function GoalsScreen() {
       name: defaultNames[goalFields.length] || `Goal ${goalFields.length + 1}`,
       percentage: 0,
       amount: 0,
+      targetAmount: 0,
     };
 
     setGoalFields([...goalFields, newField]);
@@ -148,6 +150,14 @@ export default function GoalsScreen() {
     setGoalFields(
       goalFields.map((field) =>
         field.id === id ? { ...field, percentage, amount } : field
+      )
+    );
+  };
+
+  const updateFieldTargetAmount = (id: string, targetAmount: number) => {
+    setGoalFields(
+      goalFields.map((field) =>
+        field.id === id ? { ...field, targetAmount } : field
       )
     );
   };
@@ -255,15 +265,94 @@ export default function GoalsScreen() {
             })}
           </Text>
         </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Goal Target</Text>
+          <View style={styles.targetInputContainer}>
+            <Text style={styles.currencySymbol}>$</Text>
+            <TextInput
+              style={styles.targetInput}
+              value={
+                field.targetAmount > 0 ? field.targetAmount.toString() : ""
+              }
+              onChangeText={(text) => {
+                const targetAmount = parseFloat(text) || 0;
+                updateFieldTargetAmount(field.id, targetAmount);
+              }}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+            />
+          </View>
+        </View>
       </View>
+
+      {/* Progress Section */}
+      {field.targetAmount > 0 && (
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>Progress</Text>
+            <Text style={styles.progressPercentage}>
+              {field.targetAmount > 0
+                ? Math.min(
+                    100,
+                    (field.amount / field.targetAmount) * 100
+                  ).toFixed(1)
+                : 0}
+              %
+            </Text>
+          </View>
+          <View style={styles.progressBarContainer}>
+            <View
+              style={[
+                styles.progressBar,
+                {
+                  width: `${Math.min(
+                    100,
+                    (field.amount / field.targetAmount) * 100
+                  )}%`,
+                  backgroundColor:
+                    field.amount >= field.targetAmount
+                      ? Colors.success
+                      : Colors.primary,
+                },
+              ]}
+            />
+          </View>
+          <View style={styles.progressAmounts}>
+            <Text style={styles.progressText}>
+              $
+              {field.amount.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              saved
+            </Text>
+            <Text
+              style={[
+                styles.progressText,
+                {
+                  color:
+                    field.amount >= field.targetAmount
+                      ? Colors.success
+                      : Colors.textLight,
+                },
+              ]}
+            >
+              $
+              {(field.targetAmount - field.amount).toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              to go
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Savings Allocation</Text>
         <TouchableOpacity style={styles.resetButton} onPress={resetGoals}>
@@ -271,102 +360,119 @@ export default function GoalsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 20}
       >
-        {/* Total Amount Section */}
-        <View style={styles.totalSection}>
-          <Text style={styles.sectionTitle}>Total Savings Amount</Text>
-          <View style={styles.totalInputContainer}>
-            <Text style={styles.currencySymbol}>$</Text>
-            <TextInput
-              style={[
-                styles.totalAmountInput,
-                { borderColor: isValidTotal ? Colors.border : Colors.error },
-              ]}
-              value={totalAmount}
-              onChangeText={handleTotalAmountChange}
-              placeholder="0.00"
-              keyboardType="decimal-pad"
-              placeholderTextColor={Colors.textLight}
-            />
-          </View>
-          {!isValidTotal && (
-            <Text style={styles.errorText}>Please enter a valid amount</Text>
-          )}
-        </View>
-
-        {/* Summary Section */}
-        {totalAmount && parseFloat(totalAmount) > 0 && (
-          <View style={styles.summarySection}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total Allocated to Goals:</Text>
-              <Text
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets={true}
+          contentInsetAdjustmentBehavior="automatic"
+        >
+          {/* Total Amount Section */}
+          <View style={styles.totalSection}>
+            <Text style={styles.sectionTitle}>Total Savings Amount</Text>
+            <View style={styles.totalInputContainer}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
                 style={[
-                  styles.summaryValue,
-                  { color: isPercentageValid ? Colors.success : Colors.error },
+                  styles.totalAmountInput,
+                  { borderColor: isValidTotal ? Colors.border : Colors.error },
                 ]}
-              >
-                {totalPercentage.toFixed(1)}%
-              </Text>
+                value={totalAmount}
+                onChangeText={handleTotalAmountChange}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+                placeholderTextColor={Colors.textLight}
+              />
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Unallocated Savings:</Text>
-              <Text
-                style={[
-                  styles.summaryValue,
-                  {
-                    color:
-                      100 - totalPercentage >= 0
-                        ? Colors.success
-                        : Colors.error,
-                  },
-                ]}
-              >
-                {(100 - totalPercentage).toFixed(1)}%
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Goal Fields */}
-        <View style={styles.goalsSection}>
-          <View style={styles.goalsSectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Savings Allocation ({goalFields.length}/5)
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.addButton,
-                { opacity: goalFields.length >= 5 ? 0.5 : 1 },
-              ]}
-              onPress={addGoalField}
-              disabled={goalFields.length >= 5}
-            >
-              <FontAwesome name="plus" size={16} color={Colors.background} />
-              <Text style={styles.addButtonText}>Add Goal</Text>
-            </TouchableOpacity>
+            {!isValidTotal && (
+              <Text style={styles.errorText}>Please enter a valid amount</Text>
+            )}
           </View>
 
-          {goalFields.length === 0 ? (
-            <View style={styles.emptyState}>
-              <FontAwesome name="bullseye" size={48} color={Colors.textLight} />
-              <Text style={styles.emptyStateText}>
-                No savings goals added yet
-              </Text>
-              <Text style={styles.emptyStateSubtext}>
-                Tap &quot;Add Goal&quot; to allocate your savings towards
-                specific goals
-              </Text>
+          {/* Summary Section */}
+          {totalAmount && parseFloat(totalAmount) > 0 && (
+            <View style={styles.summarySection}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>
+                  Total Allocated to Goals:
+                </Text>
+                <Text
+                  style={[
+                    styles.summaryValue,
+                    {
+                      color: isPercentageValid ? Colors.success : Colors.error,
+                    },
+                  ]}
+                >
+                  {totalPercentage.toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Unallocated Savings:</Text>
+                <Text
+                  style={[
+                    styles.summaryValue,
+                    {
+                      color:
+                        100 - totalPercentage >= 0
+                          ? Colors.success
+                          : Colors.error,
+                    },
+                  ]}
+                >
+                  {(100 - totalPercentage).toFixed(1)}%
+                </Text>
+              </View>
             </View>
-          ) : (
-            goalFields.map(renderGoalField)
           )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          {/* Goal Fields */}
+          <View style={styles.goalsSection}>
+            <View style={styles.goalsSectionHeader}>
+              <Text style={styles.sectionTitle}>
+                Savings Allocation ({goalFields.length}/5)
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.addButton,
+                  { opacity: goalFields.length >= 5 ? 0.5 : 1 },
+                ]}
+                onPress={addGoalField}
+                disabled={goalFields.length >= 5}
+              >
+                <FontAwesome name="plus" size={16} color={Colors.background} />
+                <Text style={styles.addButtonText}>Add Goal</Text>
+              </TouchableOpacity>
+            </View>
+
+            {goalFields.length === 0 ? (
+              <View style={styles.emptyState}>
+                <FontAwesome
+                  name="bullseye"
+                  size={48}
+                  color={Colors.textLight}
+                />
+                <Text style={styles.emptyStateText}>
+                  No savings goals added yet
+                </Text>
+                <Text style={styles.emptyStateSubtext}>
+                  Tap &quot;Add Goal&quot; to allocate your savings towards
+                  specific goals
+                </Text>
+              </View>
+            ) : (
+              goalFields.map(renderGoalField)
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -374,6 +480,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",
@@ -396,7 +505,9 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.xl * 4, // Extra bottom padding for keyboard visibility
+    flexGrow: 1,
+    minHeight: "100%",
   },
   totalSection: {
     backgroundColor: Colors.background,
@@ -592,5 +703,65 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  targetInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    backgroundColor: Colors.background,
+  },
+  targetInput: {
+    flex: 1,
+    ...Typography.body,
+    color: Colors.text,
+    padding: Spacing.sm,
+    textAlign: "center",
+  },
+  progressSection: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  progressLabel: {
+    ...Typography.bodySmall,
+    color: Colors.textLight,
+    fontWeight: "600",
+  },
+  progressPercentage: {
+    ...Typography.bodySmall,
+    color: Colors.text,
+    fontWeight: "600",
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+    marginBottom: Spacing.sm,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  progressAmounts: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  progressText: {
+    ...Typography.bodySmall,
+    color: Colors.textLight,
   },
 });
