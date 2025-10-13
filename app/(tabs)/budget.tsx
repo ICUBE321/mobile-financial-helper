@@ -247,6 +247,24 @@ export default function BudgetScreen() {
                   maximumFractionDigits: 2,
                 })}
               </Text>
+              <Text
+                style={[
+                  styles.spentPercentage,
+                  {
+                    color: getIncomeStatusColor(
+                      budget.needs.spent || 0,
+                      budget.monthlyIncome,
+                      budget.needs.percentage
+                    ),
+                  },
+                ]}
+              >
+                {getSpentPercentageOfIncome(
+                  budget.needs.spent || 0,
+                  budget.monthlyIncome
+                ).toFixed(1)}
+                % of income
+              </Text>
               <Text style={styles.itemCount}>
                 {(budget.needs.items || []).length} items
               </Text>
@@ -285,6 +303,24 @@ export default function BudgetScreen() {
                   maximumFractionDigits: 2,
                 })}
               </Text>
+              <Text
+                style={[
+                  styles.spentPercentage,
+                  {
+                    color: getIncomeStatusColor(
+                      budget.wants.spent || 0,
+                      budget.monthlyIncome,
+                      budget.wants.percentage
+                    ),
+                  },
+                ]}
+              >
+                {getSpentPercentageOfIncome(
+                  budget.wants.spent || 0,
+                  budget.monthlyIncome
+                ).toFixed(1)}
+                % of income
+              </Text>
               <Text style={styles.itemCount}>
                 {(budget.wants.items || []).length} items
               </Text>
@@ -322,6 +358,24 @@ export default function BudgetScreen() {
                 {(budget.savings.spent || 0).toLocaleString("en-US", {
                   maximumFractionDigits: 2,
                 })}
+              </Text>
+              <Text
+                style={[
+                  styles.spentPercentage,
+                  {
+                    color: getIncomeStatusColor(
+                      budget.savings.spent || 0,
+                      budget.monthlyIncome,
+                      budget.savings.percentage
+                    ),
+                  },
+                ]}
+              >
+                {getSpentPercentageOfIncome(
+                  budget.savings.spent || 0,
+                  budget.monthlyIncome
+                ).toFixed(1)}
+                % of income
               </Text>
               <Text style={styles.itemCount}>
                 {(budget.savings.items || []).length} items
@@ -466,9 +520,29 @@ export default function BudgetScreen() {
     return allocated > 0 ? (spent / allocated) * 100 : 0;
   };
 
+  const getSpentPercentageOfIncome = (
+    spent: number,
+    monthlyIncome: number
+  ): number => {
+    return monthlyIncome > 0 ? (spent / monthlyIncome) * 100 : 0;
+  };
+
   const getStatusColor = (spent: number, allocated: number): string => {
     const percentage = getSpentPercentage(spent, allocated);
     if (percentage <= 100) return Colors.success;
+    return Colors.error;
+  };
+
+  const getIncomeStatusColor = (
+    spent: number,
+    monthlyIncome: number,
+    allocatedPercentage: number
+  ): string => {
+    const spentPercentageOfIncome = getSpentPercentageOfIncome(
+      spent,
+      monthlyIncome
+    );
+    if (spentPercentageOfIncome <= allocatedPercentage) return Colors.success;
     return Colors.error;
   };
 
@@ -1195,6 +1269,12 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     fontWeight: "600",
     textAlign: "center",
+  },
+  spentPercentage: {
+    ...Typography.bodySmall,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 2,
   },
   itemCount: {
     ...Typography.bodySmall,
