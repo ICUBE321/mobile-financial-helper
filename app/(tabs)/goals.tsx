@@ -26,6 +26,7 @@ interface GoalField {
   percentage: number;
   amount: number;
   targetAmount: number;
+  held: boolean;
 }
 
 export default function GoalsScreen() {
@@ -128,6 +129,7 @@ export default function GoalsScreen() {
       percentage: 0,
       amount: 0,
       targetAmount: 0,
+      held: false,
     };
 
     setGoalFields([...goalFields, newField]);
@@ -135,6 +137,23 @@ export default function GoalsScreen() {
 
   const removeGoalField = (id: string) => {
     setGoalFields(goalFields.filter((field) => field.id !== id));
+  };
+
+  const confirmRemoveGoal = (id: string) => {
+    Alert.alert(
+      "Delete This Goal",
+      "Are you sure you want to delete this goal?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          onPress: async () => {
+            removeGoalField(id);
+          },
+          style: "destructive",
+        },
+      ]
+    );
   };
 
   const updateFieldName = (id: string, name: string) => {
@@ -159,6 +178,30 @@ export default function GoalsScreen() {
       goalFields.map((field) =>
         field.id === id ? { ...field, targetAmount } : field
       )
+    );
+  };
+
+  const confirmUpdateState = (id: string, currentHeld: boolean) => {
+    Alert.alert(
+      "Remove Held State",
+      "Are you sure you want to remove current held state?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          onPress: async () => {
+            updateHeldState(id, currentHeld);
+          },
+          style: "destructive",
+        },
+      ]
+    );
+  };
+
+  const updateHeldState = (id: string, currentHeld: boolean) => {
+    let held = !currentHeld;
+    setGoalFields(
+      goalFields.map((field) => (field.id === id ? { ...field, held } : field))
     );
   };
 
@@ -209,6 +252,7 @@ export default function GoalsScreen() {
       style={[
         styles.goalFieldContainer,
         { borderColor: isPercentageValid ? Colors.success : Colors.error },
+        { opacity: field.held ? 0.5 : 1 },
       ]}
     >
       <View style={styles.goalFieldHeader}>
@@ -220,14 +264,31 @@ export default function GoalsScreen() {
           maxLength={30}
         />
         <TouchableOpacity
-          onPress={() => removeGoalField(field.id)}
+          style={field.held ? styles.heldButton : styles.holdButton}
+          onPress={() =>
+            field.held
+              ? confirmUpdateState(field.id, field.held)
+              : updateHeldState(field.id, field.held)
+          }
+        >
+          <Text
+            style={field.held ? styles.heldButtonText : styles.holdButtonText}
+          >
+            HOLD
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => confirmRemoveGoal(field.id)}
           style={styles.removeButton}
         >
           <FontAwesome name="times" size={16} color={Colors.error} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.goalFieldContent}>
+      <View
+        style={styles.goalFieldContent}
+        pointerEvents={field.held ? "none" : "auto"}
+      >
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>% of Savings</Text>
           <View style={styles.percentageInputContainer}>
@@ -607,6 +668,37 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     color: Colors.background,
+    fontWeight: "600",
+    marginLeft: Spacing.xs,
+  },
+  holdButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.success,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  holdButtonText: {
+    color: Colors.background,
+    fontWeight: "600",
+    marginLeft: Spacing.xs,
+  },
+  heldButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.background,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
+    borderColor: Colors.textLight,
+    marginBottom: Spacing.md,
+    opacity: 0.5,
+  },
+  heldButtonText: {
+    color: Colors.textLight,
     fontWeight: "600",
     marginLeft: Spacing.xs,
   },
